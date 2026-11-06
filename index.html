@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ứng Dụng Học Từ Vựng Flashcard</title>
+    <!-- Tailwind CSS để giao diện đẹp và hiện đại -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .perspective-1000 { perspective: 1000px; }
+        .transform-style-3d { transform-style: preserve-style3d; }
+        .backface-hidden { backface-visibility: hidden; }
+        .rotate-y-180 { transform: rotateY(180deg); }
+        .transition-transform { transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1); }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800 flex flex-col justify-between">
+
+    <!-- Header -->
+    <header class="bg-indigo-600 text-white shadow-md py-4 px-6">
+        <div class="max-w-4xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+            <h1 class="text-2xl font-bold flex items-center gap-2">
+                📚 <span>Flashcard Từ Vựng</span>
+            </h1>
+            <nav class="flex gap-2 bg-indigo-700 p-1 rounded-xl">
+                <button onclick="switchTab('study')" id="btn-study" class="px-4 py-2 rounded-lg font-medium transition bg-white text-indigo-700 shadow">📖 Học Thẻ</button>
+                <button onclick="switchTab('quiz')" id="btn-quiz" class="px-4 py-2 rounded-lg font-medium transition text-white hover:bg-indigo-600">📝 Kiểm Tra</button>
+                <button onclick="switchTab('manage')" id="btn-manage" class="px-4 py-2 rounded-lg font-medium transition text-white hover:bg-indigo-600">⚙️ Quản Lý Từ</button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-2xl w-full mx-auto p-4 sm:p-6 flex-grow">
+
+        <!-- TAB 1: STUDY (HỌC FLASHCARD) -->
+        <div id="tab-study" class="space-y-6">
+            <div class="flex justify-between items-center text-sm font-semibold text-slate-500">
+                <span id="study-progress">Từ 1 / 0</span>
+                <span id="study-status-badge" class="px-2.5 py-1 rounded-full text-xs bg-amber-100 text-amber-700">Chưa thuộc</span>
+            </div>
+
+            <!-- Flashcard 3D -->
+            <div class="perspective-1000 w-full h-72 cursor-pointer select-none" onclick="flipCard()">
+                <div id="flashcard-inner" class="relative w-full h-full rounded-2xl shadow-xl transition-transform transform-style-3d bg-white border border-slate-200">
+                    <!-- Mặt Trước (Từ vựng) -->
+                    <div class="absolute inset-0 w-full h-full backface-hidden flex flex-col items-center justify-center p-6 text-center">
+                        <span class="text-xs uppercase tracking-widest text-indigo-500 font-bold mb-2">Từ vựng (Nhấn để lật)</span>
+                        <h2 id="card-word" class="text-4xl font-extrabold text-slate-800 mb-4">--</h2>
+                        <button onclick="event.stopPropagation(); speakWord()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-4 py-2 rounded-full text-sm font-medium flex items-center gap-1 transition">
+                            🔊 Phát âm
+                        </button>
+                    </div>
+                    <!-- Mặt Sau (Nghĩa & Ví dụ) -->
+                    <div class="absolute inset-0 w-full h-full backface-hidden rotate-y-180 flex flex-col items-center justify-center p-6 text-center bg-indigo-50 rounded-2xl">
+                        <span class="text-xs uppercase tracking-widest text-indigo-600 font-bold mb-2">Ý nghĩa</span>
+                        <h3 id="card-meaning" class="text-3xl font-bold text-indigo-900 mb-2">--</h3>
+                        <p id="card-example" class="text-slate-600 italic text-sm">--</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Điều hướng thẻ -->
+            <div class="flex gap-4">
+                <button onclick="prevCard()" class="flex-1 bg-white hover:bg-slate-50 border border-slate-300 py-3 rounded-xl font-semibold shadow-sm transition">⬅️ Từ trước</button>
+                <button onclick="toggleMastered()" id="btn-mastered" class="px-5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 py-3 rounded-xl font-semibold shadow-sm transition">✅ Đã thuộc</button>
+                <button onclick="nextCard()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-semibold shadow-md transition">Tiếp theo ➡️</button>
+            </div>
+        </div>
+
+        <!-- TAB 2: QUIZ (KIỂM TRA) -->
+        <div id="tab-quiz" class="hidden space-y-6 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+            <div class="flex justify-between items-center border-b pb-4">
+                <h3 class="text-lg font-bold text-slate-800">Kiểm Tra Trắc Nghiệm</h3>
+                <span id="quiz-score" class="text-sm font-semibold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">Điểm: 0</span>
+            </div>
+            
+            <div id="quiz-container" class="space-y-4">
+                <p id="quiz-question" class="text-lg font-medium text-slate-700">Nghĩa của từ <strong id="quiz-word" class="text-indigo-600">--</strong> là gì?</p>
+                <div id="quiz-options" class="grid grid-cols-1 gap-3">
+                    <!-- Các nút đáp án sẽ được chèn ở đây bằng JS -->
+                </div>
+            </div>
+            <div id="quiz-result-box" class="hidden text-center py-4">
+                <p id="quiz-feedback" class="text-xl font-bold mb-4"></p>
+                <button onclick="nextQuizQuestion()" class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-semibold shadow hover:bg-indigo-700 transition">Tiếp tục câu hỏi</button>
+            </div>
+        </div>
+
+        <!-- TAB 3: MANAGE (QUẢN LÝ TỪ VỰNG) -->
+        <div id="tab-manage" class="hidden space-y-6">
+            <!-- Form thêm từ mới -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+                <h3 class="text-lg font-bold text-slate-800">Thêm Từ Vựng Mới</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <input type="text" id="input-word" placeholder="Từ vựng (Ví dụ: Apple)" class="border border-slate-300 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <input type="text" id="input-meaning" placeholder="Nghĩa tiếng Việt (Ví dụ: Quả táo)" class="border border-slate-300 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <input type="text" id="input-example" placeholder="Ví dụ câu (Tùy chọn)" class="w-full border border-slate-300 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <button onclick="addWord()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-semibold shadow transition">Thêm Vào Danh Sách</button>
+            </div>
+
+            <!-- Danh sách từ đã lưu -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-lg font-bold text-slate-800">Danh Sách Từ (<span id="total-words-count">0</span>)</h3>
+                    <div class="flex gap-2">
+                        <button onclick="exportData()" class="text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg font-medium">Xuất file JSON</button>
+                        <button onclick="importDataPrompt()" class="text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg font-medium">Nhập file JSON</button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto max-h-60 overflow-y-auto border border-slate-100 rounded-xl">
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead class="bg-slate-50 sticky top-0 text-slate-500">
+                            <tr>
+                                <th class="p-3 border-b">Từ vựng</th>
+                                <th class="p-3 border-b">Nghĩa</th>
+                                <th class="p-3 border-b text-right">Hành động</th>
+                            </tr>
+                        </thead>
+                        <tbody id="word-table-body">
+                            <!-- Dữ liệu render bằng JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center py-6 text-xs text-slate-400">
+        Flashcard App • Chạy trực tiếp trên trình duyệt & lưu tự động
+    </footer>
+
+    <!-- JavaScript Xử Lý Toàn Bộ Ứng Dụng -->
+    <script>
+        // Dữ liệu mẫu mặc định nếu chưa có gì trong LocalStorage
+        let defaultVocab = [
+            { word: "Apple", meaning: "Quả táo", example: "I eat an apple every day.", mastered: false },
+            { word: "Book", meaning: "Quyển sách", example: "This is an interesting book.", mastered: false },
+            { word: "Computer", meaning: "Máy tính", example: "He is working on his computer.", mastered: false },
+            { word: "Language", meaning: "Ngôn ngữ", example: "English is a global language.", mastered: false }
+        ];
+
+        let vocabList = JSON.parse(localStorage.getItem("flashcard_vocab")) || defaultVocab;
+        let currentIndex = 0;
+        let isFlipped = false;
+        let quizScore = 0;
+        let currentQuizCorrectMeaning = "";
+
+        // Lưu dữ liệu vào localStorage
+        function saveToStorage() {
+            localStorage.setItem("flashcard_vocab", JSON.stringify(vocabList));
+        }
+
+        // Chuyển Tab giao diện
+        function switchTab(tab) {
+            ['study', 'quiz', 'manage'].forEach(t => {
+                document.getElementById(`tab-${t}`).classList.add('hidden');
+                document.getElementById(`btn-${t}`).className = "px-4 py-2 rounded-lg font-medium transition text-white hover:bg-indigo-600";
+            });
+            document.getElementById(`tab-${tab}`).classList.remove('hidden');
+            document.getElementById(`btn-${tab}`).className = "px-4 py-2 rounded-lg font-medium transition bg-white text-indigo-700 shadow";
+
+            if (tab === 'study') updateCardUI();
+            if (tab === 'quiz') startQuiz();
+            if (tab === 'manage') renderTable();
+        }
+
+        // --- PHẦN 1: HỌC FLASHCARD ---
+        function updateCardUI() {
+            if (vocabList.length === 0) {
+                document.getElementById("card-word").innerText = "Chưa có từ nào!";
+                document.getElementById("card-meaning").innerText = "Hãy thêm từ mới ở mục Quản lý.";
+                document.getElementById("card-example").innerText = "";
+                document.getElementById("study-progress").innerText = "0 / 0";
+                return;
+            }
+            if (currentIndex >= vocabList.length) currentIndex = 0;
+            
+            let item = vocabList[currentIndex];
+            document.getElementById("card-word").innerText = item.word;
+            document.getElementById("card-meaning").innerText = item.meaning;
+            document.getElementById("card-example").innerText = item.example ? `Ví dụ: ${item.example}` : "";
+            document.getElementById("study-progress").innerText = `Từ ${currentIndex + 1} / ${vocabList.length}`;
+            
+            let badge = document.getElementById("study-status-badge");
+            let btnMaster = document.getElementById("btn-mastered");
+            if (item.mastered) {
+                badge.innerText = "Đã thuộc ⭐";
+                badge.className = "px-2.5 py-1 rounded-full text-xs bg-emerald-100 text-emerald-700 font-semibold";
+                btnMaster.innerText = "🔄 Học lại";
+            } else {
+                badge.innerText = "Chưa thuộc";
+                badge.className = "px-2.5 py-1 rounded-full text-xs bg-amber-100 text-amber-700 font-semibold";
+                btnMaster.innerText = "✅ Đã thuộc";
+            }
+
+            // Đưa thẻ về mặt trước nếu đang lật mặt sau
+            if (isFlipped) {
+                document.getElementById("flashcard-inner").classList.remove("rotate-y-180");
+                isFlipped = false;
+            }
+        }
+
+        function flipCard() {
+            if (vocabList.length === 0) return;
+            let inner = document.getElementById("flashcard-inner");
+            isFlipped = !isFlipped;
+            if (isFlipped) {
+                inner.classList.add("rotate-y-180");
+            } else {
+                inner.classList.remove("rotate-y-180");
+            }
+        }
+
+        function nextCard() {
+            if (vocabList.length === 0) return;
+            currentIndex = (currentIndex + 1) % vocabList.length;
+            updateCardUI();
+        }
+
+        function prevCard() {
+            if (vocabList.length === 0) return;
+            currentIndex = (currentIndex - 1 + vocabList.length) % vocabList.length;
+            updateCardUI();
+        }
+
+        function toggleMastered() {
+            if (vocabList.length === 0) return;
+            vocabList[currentIndex].mastered = !vocabList[currentIndex].mastered;
+            saveToStorage();
+            updateCardUI();
+        }
+
+        function speakWord() {
+            if (vocabList.length === 0) return;
+            let word = vocabList[currentIndex].word;
+            let utterance = new SpeechSynthesisUtterance(word);
+            utterance.lang = 'en-US';
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // --- PHẦN 2: KIỂM TRA (QUIZ) ---
+        function startQuiz() {
+            if (vocabList.length < 2) {
+                document.getElementById("quiz-container").innerHTML = `<p class="text-amber-600 text-center py-6">Cần ít nhất 2 từ vựng trong danh sách để tạo câu hỏi trắc nghiệm!</p>`;
+                document.getElementById("quiz-result-box").classList.add("hidden");
+                return;
+            }
+            document.getElementById("quiz-result-box").classList.add("hidden");
+            document.getElementById("quiz-container").classList.remove("hidden");
+
+            // Chọn ngẫu nhiên 1 từ làm câu hỏi
+            let targetIdx = Math.floor(Math.random() * vocabList.length);
+            let targetItem = vocabList[targetIdx];
+            currentQuizCorrectMeaning = targetItem.meaning;
+
+            document.getElementById("quiz-word").innerText = targetItem.word;
+
+            // Tạo danh sách 4 đáp án (1 đúng, 3 sai ngẫu nhiên)
+            let options = [targetItem.meaning];
+            while (options.length < 4 && options.length < vocabList.length) {
+                let randomItem = vocabList[Math.floor(Math.random() * vocabList.length)];
+                if (!options.includes(randomItem.meaning)) {
+                    options.push(randomItem.meaning);
+                }
+            }
+            // Trộn ngẫu nhiên vị trí các đáp án
+            options.sort(() => Math.random() - 0.5);
+
+            let optionsHTML = "";
+            options.forEach(opt => {
+                optionsHTML += `<button onclick="checkQuizAnswer(this, '${opt.replace(/'/g, "\\'")}')" class="w-full text-left p-3.5 rounded-xl border border-slate-200 hover:bg-indigo-50 hover:border-indigo-300 font-medium transition shadow-sm">${opt}</button>`;
+            });
+            document.getElementById("quiz-options").innerHTML = optionsHTML;
+        }
+
+        function checkQuizAnswer(btnElement, selectedOption) {
+            let allButtons = document.querySelectorAll("#quiz-options button");
+            allButtons.forEach(btn => btn.disabled = true);
+
+            let feedbackElem = document.getElementById("quiz-feedback");
+            if (selectedOption === currentQuizCorrectMeaning) {
+                btnElement.className = "w-full text-left p-3.5 rounded-xl border bg-emerald-100 border-emerald-400 text-emerald-800 font-medium shadow-sm";
+                feedbackElem.innerText = "🎉 Chính xác rất tuyệt vời!";
+                feedbackElem.className = "text-xl font-bold mb-4 text-emerald-600";
+                quizScore += 10;
+            } else {
+                btnElement.className = "w-full text-left p-3.5 rounded-xl border bg-rose-100 border-rose-400 text-rose-800 font-medium shadow-sm";
+                feedbackElem.innerText = `❌ Sai rồi! Đáp án đúng là: ${currentQuizCorrectMeaning}`;
+                feedbackElem.className = "text-xl font-bold mb-4 text-rose-600";
+                // Tô sáng đáp án đúng
+                allButtons.forEach(btn => {
+                    if (btn.innerText === currentQuizCorrectMeaning) {
+                        btn.className = "w-full text-left p-3.5 rounded-xl border bg-emerald-100 border-emerald-400 text-emerald-800 font-medium shadow-sm";
+                    }
+                });
+            }
+            document.getElementById("quiz-score").innerText = `Điểm: ${quizScore}`;
+            document.getElementById("quiz-result-box").classList.remove("hidden");
+        }
+
+        function nextQuizQuestion() {
+            startQuiz();
+        }
+
+        // --- PHẦN 3: QUẢN LÝ TỪ VỰNG ---
+        function renderTable() {
+            let tbody = document.getElementById("word-table-body");
+            document.getElementById("total-words-count").innerText = vocabList.length;
+            if (vocabList.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" class="p-4 text-center text-slate-400">Chưa có từ vựng nào.</td></tr>`;
+                return;
+            }
+            let html = "";
+            vocabList.forEach((item, index) => {
+                html += `
+                    <tr class="border-b hover:bg-slate-50">
+                        <td class="p-3 font-semibold text-slate-800">${item.word} ${item.mastered ? '⭐' : ''}</td>
+                        <td class="p-3 text-slate-600">${item.meaning}</td>
+                        <td class="p-3 text-right">
+                            <button onclick="deleteWord(${index})" class="text-rose-600 hover:text-rose-800 font-medium text-xs bg-rose-50 px-2.5 py-1 rounded-lg">Xóa</button>
+                        </td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function addWord() {
+            let word = document.getElementById("input-word").value.trim();
+            let meaning = document.getElementById("input-meaning").value.trim();
+            let example = document.getElementById("input-example").value.trim();
+
+            if (!word || !meaning) {
+                alert("Vui lòng nhập đầy đủ Từ vựng và Nghĩa tiếng Việt!");
+                return;
+            }
+
+            vocabList.push({ word, meaning, example, mastered: false });
+            saveToStorage();
+
+            // Reset input
+            document.getElementById("input-word").value = "";
+            document.getElementById("input-meaning").value = "";
+            document.getElementById("input-example").value = "";
+
+            renderTable();
+            alert("Đã thêm từ mới thành công!");
+        }
+
+        function deleteWord(index) {
+            if (confirm("Bạn có chắc chắn muốn xóa từ này không?")) {
+                vocabList.splice(index, 1);
+                saveToStorage();
+                renderTable();
+            }
+        }
+
+        // Xuất file JSON sao lưu
+        function exportData() {
+            let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(vocabList, null, 2));
+            let downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", "flashcard_data.json");
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        // Nhập file JSON khôi phục
+        function importDataPrompt() {
+            let input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = e => {
+                let file = e.target.files[0];
+                let reader = new FileReader();
+                reader.onload = event => {
+                    try {
+                        let imported = JSON.parse(event.target.result);
+                        if (Array.isArray(imported)) {
+                            vocabList = imported;
+                            saveToStorage();
+                            renderTable();
+                            alert("Nhập dữ liệu thành công!");
+                        } else {
+                            alert("File định dạng không hợp lệ!");
+                        }
+                    } catch (err) {
+                        alert("Lỗi đọc file JSON!");
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+
+        // Khởi chạy khởi tạo ban đầu
+        updateCardUI();
+    </script>
+</body>
+</html>
